@@ -21,6 +21,7 @@ class CommandEngine(private val context: Context) {
     )
 
     private val localAi = LocalAiBridge(context)
+    private val customCommandRepo = com.agal.assistant.custom.CustomCommandRepository(context)
 
     suspend fun execute(rawInput: String): CommandResult {
         val trimmed = rawInput.trim()
@@ -35,7 +36,21 @@ class CommandEngine(private val context: Context) {
             )
         }
 
-        // Match against registered Kotlin Rules
+        // 1. Check User-Defined Custom Commands & Routines First
+        val matchedCustom = customCommandRepo.match(trimmed)
+        if (matchedCustom != null) {
+            val spokenReply = customCommandRepo.executeAction(matchedCustom)
+            return CommandResult(
+                type = CommandType.CUSTOM_COMMAND,
+                rawInput = rawInput,
+                spokenReply = spokenReply,
+                displayTitle = "⚡ Custom: ${matchedCustom.title.ifBlank { matchedCustom.triggerPhrase }}",
+                displayDescription = "Custom Action: ${matchedCustom.actionType.displayName}",
+                isSuccess = true
+            )
+        }
+
+        // 2. Match against registered Kotlin Rules
         for (rule in rules) {
             if (rule.matches(trimmed)) {
                 return rule.execute(trimmed, context)

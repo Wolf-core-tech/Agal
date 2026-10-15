@@ -4,6 +4,7 @@ package com.agal.assistant.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +26,8 @@ import com.agal.assistant.ui.theme.*
 @Composable
 fun SettingsScreen(
     viewModel: AssistantViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToCustomStudio: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var customWordInput by remember { mutableStateOf(uiState.activeWakeWord) }
@@ -145,6 +147,64 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Test Wake Word (\"${uiState.activeWakeWord}\")", color = NeonCyan)
                         }
+                    }
+                }
+            }
+
+            item {
+                // SECTION: CUSTOM WORDS & ROUTINES STUDIO
+                SectionHeader("CUSTOM WORDS & ACTIONS STUDIO", Icons.Rounded.AutoFixHigh, NeonViolet)
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNavigateToCustomStudio),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(NeonViolet.copy(alpha = 0.35f)))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(NeonViolet.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoFixHigh,
+                                    contentDescription = null,
+                                    tint = NeonViolet,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Custom Words & Sentences",
+                                    color = TextWhite,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Create custom words, replies & phone actions",
+                                    color = TextMuted,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Rounded.ChevronRight,
+                            contentDescription = null,
+                            tint = NeonViolet
+                        )
                     }
                 }
             }

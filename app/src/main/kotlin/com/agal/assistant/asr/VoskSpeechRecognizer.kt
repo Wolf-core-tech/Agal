@@ -41,11 +41,12 @@ class VoskSpeechRecognizer(
 
         try {
             if (model != null) {
-                val recognizer = Recognizer(model, 16000.0f, grammarJson)
+                // Open vocabulary recognizer: recognizes all custom words, sentences, and commands
+                val recognizer = Recognizer(model, 16000.0f)
                 speechService = SpeechService(recognizer, 16000.0f)
                 speechService?.startListening(this)
                 isListening = true
-                Log.i(TAG, "Vosk offline speech recognition started")
+                Log.i(TAG, "Vosk offline open-vocabulary speech recognition started")
             } else {
                 Log.w(TAG, "Vosk model not yet loaded. Using direct command loop.")
             }

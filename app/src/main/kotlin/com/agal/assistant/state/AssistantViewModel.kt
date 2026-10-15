@@ -42,9 +42,14 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    private val customCommandRepo = com.agal.assistant.custom.CustomCommandRepository(application)
+    private val _customCommands = MutableStateFlow<List<com.agal.assistant.custom.CustomVoiceCommand>>(emptyList())
+    val customCommands: StateFlow<List<com.agal.assistant.custom.CustomVoiceCommand>> = _customCommands.asStateFlow()
+
     init {
         voiceSpeaker.init()
         porcupineEngine.init()
+        loadCustomCommands()
         voskRecognizer.initModel { isReady ->
             Log.i(TAG, "Vosk model initialization result: $isReady")
         }
@@ -196,6 +201,40 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun speakSample() {
         voiceSpeaker.speak("Hello! I am Agal, speaking back to you completely offline.")
+    }
+
+    fun loadCustomCommands() {
+        _customCommands.value = customCommandRepo.getCommands()
+    }
+
+    fun addCustomCommand(command: com.agal.assistant.custom.CustomVoiceCommand) {
+        _customCommands.value = customCommandRepo.addCommand(command)
+    }
+
+    fun updateCustomCommand(command: com.agal.assistant.custom.CustomVoiceCommand) {
+        _customCommands.value = customCommandRepo.updateCommand(command)
+    }
+
+    fun deleteCustomCommand(id: String) {
+        _customCommands.value = customCommandRepo.deleteCommand(id)
+    }
+
+    fun toggleCustomCommand(id: String, isEnabled: Boolean) {
+        _customCommands.value = customCommandRepo.toggleCommand(id, isEnabled)
+    }
+
+    fun testCustomCommand(command: com.agal.assistant.custom.CustomVoiceCommand) {
+        viewModelScope.launch {
+            val reply = customCommandRepo.executeAction(command)
+            voiceSpeaker.speak(reply)
+            val entry = CommandHistoryEntry(
+                userInput = command.triggerPhrase,
+                assistantReply = reply,
+                commandType = com.agal.assistant.engine.models.CommandType.CUSTOM_COMMAND,
+                isSuccess = true
+            )
+            _uiState.update { it.copy(history = listOf(entry) + it.history) }
+        }
     }
 
     fun clearHistory() {

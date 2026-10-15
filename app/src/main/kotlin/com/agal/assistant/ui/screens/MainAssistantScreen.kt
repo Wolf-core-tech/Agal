@@ -42,7 +42,8 @@ fun MainAssistantScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToGuide: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
-    onNavigateToConfigurator: () -> Unit
+    onNavigateToConfigurator: () -> Unit,
+    onNavigateToCustomStudio: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
@@ -71,6 +72,9 @@ fun MainAssistantScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToCustomStudio) {
+                        Icon(Icons.Rounded.AutoFixHigh, contentDescription = "Custom Studio", tint = NeonViolet)
+                    }
                     PrivacyShieldBadge(onClick = onNavigateToPrivacy)
                     IconButton(onClick = onNavigateToConfigurator) {
                         Icon(Icons.Rounded.Tune, contentDescription = "Configurator", tint = NeonCyan)
@@ -158,7 +162,69 @@ fun MainAssistantScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Custom Rules Studio Shortcut Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    DarkSurfaceVariant,
+                                    NeonViolet.copy(alpha = 0.2f)
+                                )
+                            )
+                        )
+                        .border(1.dp, NeonViolet.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                        .clickable(onClick = onNavigateToCustomStudio)
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(NeonViolet.copy(alpha = 0.25f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoFixHigh,
+                                    contentDescription = null,
+                                    tint = NeonViolet,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Custom Words & Sentences",
+                                    color = TextWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Create custom phrases & assign phone actions",
+                                    color = TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Rounded.ChevronRight,
+                            contentDescription = null,
+                            tint = NeonViolet
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // Quick Prompts Header
                 Row(

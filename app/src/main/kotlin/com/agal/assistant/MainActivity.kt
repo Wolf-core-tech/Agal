@@ -28,7 +28,8 @@ enum class Screen {
     SETTINGS,
     GUIDE,
     PRIVACY,
-    CONFIGURATOR
+    CONFIGURATOR,
+    CUSTOM_STUDIO
 }
 
 class MainActivity : ComponentActivity() {
@@ -65,11 +66,17 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToSettings = { currentScreen = Screen.SETTINGS },
                                 onNavigateToGuide = { currentScreen = Screen.GUIDE },
                                 onNavigateToPrivacy = { currentScreen = Screen.PRIVACY },
-                                onNavigateToConfigurator = { currentScreen = Screen.CONFIGURATOR }
+                                onNavigateToConfigurator = { currentScreen = Screen.CONFIGURATOR },
+                                onNavigateToCustomStudio = { currentScreen = Screen.CUSTOM_STUDIO }
+                            )
+                            Screen.CUSTOM_STUDIO -> CustomCommandsScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { currentScreen = Screen.MAIN }
                             )
                             Screen.SETTINGS -> SettingsScreen(
                                 viewModel = viewModel,
-                                onNavigateBack = { currentScreen = Screen.MAIN }
+                                onNavigateBack = { currentScreen = Screen.MAIN },
+                                onNavigateToCustomStudio = { currentScreen = Screen.CUSTOM_STUDIO }
                             )
                             Screen.GUIDE -> CommandsGuideScreen(
                                 viewModel = viewModel,

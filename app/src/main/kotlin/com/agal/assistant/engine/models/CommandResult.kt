@@ -14,6 +14,7 @@ enum class CommandType {
     ASSISTANT_INFO,
     HELP,
     LOCAL_AI_QUERY,
+    CUSTOM_COMMAND,
     UNKNOWN
 }
 
