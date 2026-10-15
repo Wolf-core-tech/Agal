@@ -57,7 +57,7 @@ fun QuickActionChip(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = label,
-                color = TextWhite,
+                color = com.agal.assistant.ui.theme.TextDark,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
             )

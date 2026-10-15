@@ -53,10 +53,12 @@ fun CommandsGuideScreen(
             )
         ),
         CategoryData(
-            title = "Daily Utilities",
+            title = "Reminders & Utilities",
             icon = Icons.Rounded.AccessTime,
             color = EmeraldGreen,
             commands = listOf(
+                CommandItem("Remember me to [work] in 10 mins", "Schedules an offline exact alarm reminder with vibration and heads-up alert"),
+                CommandItem("Remind me to call at 5 PM", "Sets exact timed reminder for tasks and meetings"),
                 CommandItem("What time is it?", "Speaks current local time with offline TTS"),
                 CommandItem("What is today's date?", "Replies with full day, month, and year"),
                 CommandItem("Battery status", "Reads on-device battery percentage via BatteryManager")
@@ -81,14 +83,14 @@ fun CommandsGuideScreen(
                 title = {
                     Text(
                         text = "Offline Voice Commands",
-                        color = TextWhite,
+                        color = TextDark,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextDark)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -137,8 +139,8 @@ fun CommandsGuideScreen(
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.7f)),
-                                border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderSubtle))
+                                colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                                border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -149,7 +151,7 @@ fun CommandsGuideScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "“${cmd.phrase}”",
-                                            color = TextWhite,
+                                            color = TextDark,
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.SemiBold
                                         )

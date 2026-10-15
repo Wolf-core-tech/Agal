@@ -41,14 +41,14 @@ fun PrivacyVaultScreen(
                 title = {
                     Text(
                         text = "Privacy Vault & Diagnostics",
-                        color = TextWhite,
+                        color = TextDark,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextDark)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -250,7 +250,7 @@ private fun PipelineStep(step: Int, title: String, subtitle: String, icon: Image
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text("$step. $title", color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text("$step. $title", color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = TextMuted, fontSize = 11.sp)
         }
     }

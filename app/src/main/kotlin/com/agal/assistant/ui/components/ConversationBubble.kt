@@ -58,8 +58,9 @@ fun ConversationBubble(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = entry.userInput,
-                color = TextWhite,
+                color = TextDark,
                 fontSize = 14.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                 modifier = Modifier.weight(1f)
             )
             Text(
@@ -76,8 +77,8 @@ fun ConversationBubble(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(DarkSurfaceVariant.copy(alpha = 0.9f))
-                .border(1.dp, ElectricPurple.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                .background(AppLightSurfaceVariant)
+                .border(1.dp, BorderElectric, RoundedCornerShape(12.dp))
                 .padding(10.dp)
         ) {
             Row(
@@ -88,20 +89,20 @@ fun ConversationBubble(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(ElectricPurple.copy(alpha = 0.2f)),
+                        .background(ElectricBlue.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.AutoAwesome,
                         contentDescription = null,
-                        tint = NeonViolet,
+                        tint = ElectricBlue,
                         modifier = Modifier.size(14.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = entry.assistantReply,
-                    color = TextWhite,
+                    color = TextDark,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
                     modifier = Modifier.weight(1f)

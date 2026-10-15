@@ -1,27 +1,28 @@
 package com.agal.assistant.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val DarkColorScheme = darkColorScheme(
-    primary = NeonCyan,
-    secondary = ElectricPurple,
-    tertiary = EmeraldGreen,
-    background = DarkBackground,
-    surface = DarkSurface,
-    surfaceVariant = DarkSurfaceVariant,
-    onPrimary = DarkBackground,
+// White, Electric Blue, and 20% Deep Black Precision Color Scheme
+private val AgalColorScheme = lightColorScheme(
+    primary = ElectricBlue,
+    secondary = DeepBlack,
+    tertiary = NeonCyan,
+    background = AppOffWhite,
+    surface = AppLightSurface,
+    surfaceVariant = AppLightSurfaceVariant,
+    onPrimary = TextWhite,
     onSecondary = TextWhite,
-    onBackground = TextWhite,
-    onSurface = TextWhite,
+    onBackground = TextDark,
+    onSurface = TextDark,
     error = ErrorRed
 )
 
 @Composable
 fun AgalTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = DarkColorScheme,
+        colorScheme = AgalColorScheme,
         typography = Typography,
         content = content
     )

@@ -1,0 +1,20 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Install & Launch on SM A156E",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "./gradlew installDebug; if ($?) { & 'C:\\Users\\venka\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe' -s RZCX20LSQ7V shell am start -n com.agal.assistant/.MainActivity }"
+        },
+        {
+            "name": "Build Debug APK",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "./gradlew assembleDebug"
+        }
+    ]
+}

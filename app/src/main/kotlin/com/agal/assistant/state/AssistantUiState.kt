@@ -15,6 +15,8 @@ enum class AssistantStatus {
 data class AssistantUiState(
     val status: AssistantStatus = AssistantStatus.IDLE,
     val activeWakeWord: String = "Hey Agal",
+    val listeningReply: String = "I'm listening.",
+    val assistantLanguage: String = "EN",
     val isContinuousListening: Boolean = true,
     val lastRecognizedText: String = "",
     val activeStatusMessage: String = "Say \"Hey Agal\" or tap to speak",

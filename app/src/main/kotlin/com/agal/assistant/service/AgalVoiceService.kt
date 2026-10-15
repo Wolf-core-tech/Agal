@@ -93,35 +93,32 @@ class AgalVoiceService : Service() {
         }
         sendBroadcast(broadcastIntent)
 
-        // Check if wake word or direct command was spoken
-        val isWakeWord = lower.contains("hey agal") ||
-                lower.contains("agal") ||
-                lower.contains("a gal") ||
-                lower.contains("hey eagle") ||
-                lower.contains("eagle") ||
+        // Strict wake word check — must contain "agal" as a clear word boundary
+        // to avoid false-positives from random words like "eagle", "legal", "regal"
+        val isWakeWord = lower == "agal" ||
+                lower == "hey agal" ||
+                lower == "hello agal" ||
+                lower == "hi agal" ||
+                lower.startsWith("agal ") ||
+                lower.startsWith("hey agal ") ||
+                lower.startsWith("hello agal ") ||
+                lower.startsWith("hi agal ") ||
+                lower.endsWith(" agal") ||
+                lower.contains("hey agal") ||
                 lower.contains("hello agal") ||
                 lower.contains("hi agal")
 
-        val matchedCustom = customCommandRepo.match(lower)
-
         val now = System.currentTimeMillis()
-        if (matchedCustom != null && (now - lastWakeTime > 3000)) {
-            lastWakeTime = now
-            Log.i(TAG, "Custom command triggered on lock screen: ${matchedCustom.triggerPhrase}")
-            handleLockScreenWake(matchedCustom.title.ifBlank { "Custom" }, lower)
-        } else if (isWakeWord && (now - lastWakeTime > 3000)) {
+        if (isWakeWord && (now - lastWakeTime > 3000)) {
             lastWakeTime = now
             Log.i(TAG, "Wake word match detected in service: $lower")
 
-            // Extract command if user said e.g. "hey agal turn on flashlight"
+            // Extract command after wake phrase if user said e.g. "hey agal turn on flashlight"
             val commandPart = lower
                 .replace("hey agal", "")
-                .replace("agal", "")
-                .replace("a gal", "")
-                .replace("hey eagle", "")
-                .replace("eagle", "")
                 .replace("hello agal", "")
                 .replace("hi agal", "")
+                .removePrefix("agal")
                 .trim()
 
             handleLockScreenWake("Agal", commandPart)
@@ -132,20 +129,54 @@ class AgalVoiceService : Service() {
         }
     }
 
-    private val customCommandRepo by lazy { com.agal.assistant.custom.CustomCommandRepository(this) }
-
     private fun isDirectCommand(text: String): Boolean {
-        return customCommandRepo.match(text) != null ||
+        return text.contains("remind me") ||
+                text.contains("remember me") ||
+                text.contains("reminder") ||
                 text.contains("flashlight") ||
+                text.contains("torch") ||
                 text.contains("bluetooth") ||
                 text.contains("youtube") ||
                 text.contains("music") ||
+                text.contains("song") ||
+                text.contains("track") ||
+                text.contains("volume") ||
+                text.contains("mute") ||
                 text.contains("camera") ||
+                text.contains("photo") ||
+                text.contains("picture") ||
+                text.contains("video") ||
+                text.contains("record") ||
                 text.contains("battery") ||
                 text.contains("time") ||
                 text.contains("date") ||
                 text.contains("joke") ||
-                text.contains("settings")
+                text.contains("settings") ||
+                text.contains("wifi") ||
+                text.contains("wi-fi") ||
+                text.contains("hotspot") ||
+                text.contains("airplane") ||
+                text.contains("flight mode") ||
+                text.contains("dnd") ||
+                text.contains("do not disturb") ||
+                text.contains("silent") ||
+                text.contains("notification") ||
+                text.contains("answer") ||
+                text.contains("attend") ||
+                text.contains("pick up") ||
+                text.contains("accept call") ||
+                text.contains("hang up") ||
+                text.contains("hangup") ||
+                text.contains("end call") ||
+                text.contains("cut the call") ||
+                text.startsWith("open ") ||
+                text.startsWith("launch ") ||
+                text.startsWith("start ") ||
+                text.contains("app") ||
+                text.contains("bucket list") ||
+                text.contains("trip") ||
+                text.contains("spent") ||
+                text.contains("expense")
     }
 
     private fun handleLockScreenWake(keyword: String, commandToRun: String) {

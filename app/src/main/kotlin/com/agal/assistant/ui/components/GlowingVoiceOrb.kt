@@ -3,6 +3,7 @@ package com.agal.assistant.ui.components
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -55,13 +56,13 @@ fun GlowingVoiceOrb(
     )
 
     val (primaryColor, secondaryColor, statusLabel) = when (status) {
-        AssistantStatus.LISTENING_WAKE_WORD -> Triple(NeonCyan, CyanGlow, "LISTENING FOR WAKE WORD")
-        AssistantStatus.WAKE_WORD_TRIGGERED -> Triple(NeonPink, ElectricPurple, "AWOKEN • READY")
-        AssistantStatus.LISTENING_COMMAND -> Triple(EmeraldGreen, NeonCyan, "LISTENING TO COMMAND...")
-        AssistantStatus.PROCESSING -> Triple(NeonAmber, Color(0xFFFF5722), "PROCESSING OFFLINE")
-        AssistantStatus.SPEAKING_REPLY -> Triple(NeonViolet, ElectricPurple, "SPEAKING OFFLINE REPLY")
+        AssistantStatus.LISTENING_WAKE_WORD -> Triple(ElectricBlue, ElectricBlueGlow, "LISTENING FOR WAKE WORD")
+        AssistantStatus.WAKE_WORD_TRIGGERED -> Triple(ElectricBlue, NeonCyan, "AWOKEN • READY")
+        AssistantStatus.LISTENING_COMMAND -> Triple(ElectricBlue, CyanGlow, "LISTENING TO COMMAND...")
+        AssistantStatus.PROCESSING -> Triple(ElectricBlueGlow, DeepBlack, "PROCESSING OFFLINE")
+        AssistantStatus.SPEAKING_REPLY -> Triple(ElectricBlue, NeonCyan, "SPEAKING OFFLINE REPLY")
         AssistantStatus.ERROR -> Triple(ErrorRed, Color(0xFFFF5252), "ERROR")
-        AssistantStatus.IDLE -> Triple(NeonCyan.copy(alpha = 0.7f), ElectricPurple.copy(alpha = 0.5f), "TAP OR SAY \"HEY AGAL\"")
+        AssistantStatus.IDLE -> Triple(ElectricBlue, DeepBlack, "SAY \"HEY AGAL\"")
     }
 
     Column(
@@ -69,13 +70,7 @@ fun GlowingVoiceOrb(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier
-                .size(200.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onTap
-                ),
+            modifier = Modifier.size(200.dp),
             contentAlignment = Alignment.Center
         ) {
             // Animated Ripples Canvas
@@ -121,19 +116,20 @@ fun GlowingVoiceOrb(
                     )
             )
 
-            // Inner Orb Core
+            // Inner Orb Core (20% Deep Black Accent)
             Box(
                 modifier = Modifier
                     .size(96.dp)
                     .clip(CircleShape)
                     .background(
-                        Brush.linearGradient(
+                        Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFF1E293B),
-                                Color(0xFF0F172A)
+                                BlackSurfaceVariant,
+                                DeepBlack
                             )
                         )
-                    ),
+                    )
+                    .border(2.dp, ElectricBlue.copy(alpha = 0.6f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSpeaking) {

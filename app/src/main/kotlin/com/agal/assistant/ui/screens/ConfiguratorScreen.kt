@@ -65,7 +65,7 @@ fun ConfiguratorScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "Assistant Configurator",
-                            color = TextWhite,
+                            color = TextDark,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -73,7 +73,7 @@ fun ConfiguratorScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextDark)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -92,8 +92,8 @@ fun ConfiguratorScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.9f)),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(NeonCyan.copy(alpha = 0.35f)))
+                    colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -101,13 +101,13 @@ fun ConfiguratorScreen(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(Brush.linearGradient(listOf(NeonCyan, CyanGlow))),
+                                    .background(ElectricBlue),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.PhoneAndroid,
                                     contentDescription = null,
-                                    tint = DarkBackground,
+                                    tint = TextWhite,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -115,14 +115,14 @@ fun ConfiguratorScreen(
                             Column {
                                 Text(
                                     text = "$deviceManufacturer $deviceModel".uppercase(),
-                                    color = TextWhite,
+                                    color = TextDark,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Black,
                                     letterSpacing = 1.sp
                                 )
                                 Text(
                                     text = "Samsung Galaxy A15 5G • Android $androidVersion",
-                                    color = NeonCyan,
+                                    color = ElectricBlue,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -152,16 +152,16 @@ fun ConfiguratorScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(DarkSurfaceVariant)
-                        .border(1.dp, NeonViolet.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
+                        .background(AppLightSurface)
+                        .border(1.dp, BorderLight, RoundedCornerShape(14.dp))
                         .padding(14.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Info, contentDescription = null, tint = NeonViolet, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Rounded.Info, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = testResultMsg,
-                            color = TextWhite,
+                            color = TextDark,
                             fontSize = 13.sp,
                             lineHeight = 17.sp
                         )
@@ -171,18 +171,18 @@ fun ConfiguratorScreen(
 
             // SECTION 1: WAKE WORD CONFIGURATOR
             item {
-                ConfiguratorSectionHeader("1. WAKE WORD ENGINE", Icons.Rounded.RecordVoiceOver, NeonCyan)
+                ConfiguratorSectionHeader("1. WAKE WORD ENGINE", Icons.Rounded.RecordVoiceOver, ElectricBlue)
                 Spacer(modifier = Modifier.height(6.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderSubtle))
+                    colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "Engine: Picovoice Porcupine (On-Device Keyword Spotter)",
-                            color = NeonCyan,
+                            color = ElectricBlue,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -202,16 +202,16 @@ fun ConfiguratorScreen(
                                 viewModel.setCustomWakeWord(it)
                                 testResultMsg = "Wake word updated to \"$it\" on Samsung A15"
                             },
-                            label = { Text("Active Wake Word", color = NeonCyan) },
+                            label = { Text("Active Wake Word", color = ElectricBlue) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
-                                unfocusedBorderColor = BorderSubtle,
-                                focusedTextColor = TextWhite,
-                                unfocusedTextColor = TextWhite,
-                                focusedContainerColor = DarkSurfaceVariant,
-                                unfocusedContainerColor = DarkSurfaceVariant
+                                focusedBorderColor = ElectricBlue,
+                                unfocusedBorderColor = BorderLight,
+                                focusedTextColor = TextDark,
+                                unfocusedTextColor = TextDark,
+                                focusedContainerColor = AppLightSurfaceVariant,
+                                unfocusedContainerColor = AppLightSurfaceVariant
                             )
                         )
 
@@ -440,7 +440,7 @@ private fun ConfiguratorSectionHeader(title: String, icon: ImageVector, color: C
 @Composable
 private fun DeviceInfoBadge(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = value, color = TextWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(text = value, color = TextDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Text(text = label, color = TextMuted, fontSize = 10.sp)
     }
 }

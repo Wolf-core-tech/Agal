@@ -5,8 +5,10 @@ package com.agal.assistant.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -26,13 +28,15 @@ import com.agal.assistant.ui.theme.*
 @Composable
 fun SettingsScreen(
     viewModel: AssistantViewModel,
-    onNavigateBack: () -> Unit,
-    onNavigateToCustomStudio: () -> Unit = {}
+    onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var customWordInput by remember { mutableStateOf(uiState.activeWakeWord) }
+    var customReplyInput by remember { mutableStateOf(uiState.listeningReply) }
 
-    val presets = listOf("Hey Agal", "Agal", "Hey Assistant", "Jarvis", "Nova")
+    val wakeWordPresets = listOf("Hey Agal", "Agal", "வணக்கம் அகல்", "அகல்", "Hey Assistant", "Jarvis")
+    val replyPresetsEn = listOf("I'm listening.", "Yes, I'm here.", "How can I help you?", "Tell me Saran!")
+    val replyPresetsTa = listOf("சொல்லுங்க, கேட்கிறேன்.", "நான் தயாராக இருக்கிறேன்.", "உங்களுக்கு என்ன வேண்டும்?")
 
     Scaffold(
         containerColor = DarkBackground,
@@ -41,14 +45,14 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = "Assistant Settings",
-                        color = TextWhite,
+                        color = TextDark,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = TextDark)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -63,18 +67,18 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item {
-                // SECTION 1: CUSTOM WAKE WORD
-                SectionHeader("WAKE WORD ACTIVATION", Icons.Rounded.RecordVoiceOver, NeonCyan)
+                // SECTION 1: CUSTOM WAKE WORD (PHRASE)
+                SectionHeader("WAKE WORD ACTIVATION (ENGLISH & TAMIL)", Icons.Rounded.RecordVoiceOver, ElectricBlue)
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(NeonCyan.copy(alpha = 0.2f)))
+                    colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Choose or customize the name you say to activate Agal without pressing any button.",
+                            text = "Choose or type the name you say to activate Agal (English or Tamil).",
                             color = TextMuted,
                             fontSize = 13.sp,
                             lineHeight = 18.sp
@@ -84,25 +88,30 @@ fun SettingsScreen(
 
                         // Presets Row
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            presets.forEach { preset ->
+                            wakeWordPresets.forEach { preset ->
                                 val isSelected = uiState.activeWakeWord == preset
                                 FilterChip(
                                     selected = isSelected,
-                                    onClick = { viewModel.setCustomWakeWord(preset) },
+                                    onClick = {
+                                        viewModel.setCustomWakeWord(preset)
+                                        customWordInput = preset
+                                    },
                                     label = { Text(preset, fontSize = 12.sp) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = NeonCyan.copy(alpha = 0.25f),
-                                        selectedLabelColor = NeonCyan,
-                                        containerColor = DarkSurfaceVariant,
+                                        selectedContainerColor = ElectricBlue.copy(alpha = 0.15f),
+                                        selectedLabelColor = ElectricBlue,
+                                        containerColor = AppLightSurfaceVariant,
                                         labelColor = TextMuted
                                     ),
                                     border = FilterChipDefaults.filterChipBorder(
                                         enabled = true,
                                         selected = isSelected,
-                                        borderColor = if (isSelected) NeonCyan else Color.Transparent
+                                        borderColor = if (isSelected) ElectricBlue else Color.Transparent
                                     )
                                 )
                             }
@@ -113,24 +122,21 @@ fun SettingsScreen(
                         // Custom Input
                         OutlinedTextField(
                             value = customWordInput,
-                            onValueChange = {
-                                customWordInput = it
-                                viewModel.setCustomWakeWord(it)
-                            },
-                            label = { Text("Custom Wake Phrase", color = NeonCyan) },
+                            onValueChange = { customWordInput = it },
+                            label = { Text("Custom Wake Phrase", color = ElectricBlue) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
-                                unfocusedBorderColor = BorderSubtle,
-                                focusedTextColor = TextWhite,
-                                unfocusedTextColor = TextWhite,
-                                focusedContainerColor = DarkSurfaceVariant,
-                                unfocusedContainerColor = DarkSurfaceVariant
+                                focusedBorderColor = ElectricBlue,
+                                unfocusedBorderColor = BorderLight,
+                                focusedTextColor = TextDark,
+                                unfocusedTextColor = TextDark,
+                                focusedContainerColor = AppLightSurfaceVariant,
+                                unfocusedContainerColor = AppLightSurfaceVariant
                             ),
                             trailingIcon = {
                                 IconButton(onClick = { viewModel.setCustomWakeWord(customWordInput) }) {
-                                    Icon(Icons.Rounded.Check, contentDescription = "Save", tint = NeonCyan)
+                                    Icon(Icons.Rounded.Check, contentDescription = "Save", tint = ElectricBlue)
                                 }
                             }
                         )
@@ -141,69 +147,185 @@ fun SettingsScreen(
                             onClick = { viewModel.simulateSpokenPhrase(uiState.activeWakeWord) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(NeonCyan))
+                            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(ElectricBlue))
                         ) {
-                            Icon(Icons.Rounded.Hearing, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.Hearing, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Test Wake Word (\"${uiState.activeWakeWord}\")", color = NeonCyan)
+                            Text("Test Wake Word (\"${uiState.activeWakeWord}\")", color = ElectricBlue)
                         }
                     }
                 }
             }
 
             item {
-                // SECTION: CUSTOM WORDS & ROUTINES STUDIO
-                SectionHeader("CUSTOM WORDS & ACTIONS STUDIO", Icons.Rounded.AutoFixHigh, NeonViolet)
+                // SECTION: CUSTOM LISTENING RESPONSE (INSTEAD OF "I'M LISTENING")
+                SectionHeader("WAKE RESPONSE WORD (ENGLISH & தமிழ்)", Icons.Rounded.SpatialAudio, NeonAmber)
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onNavigateToCustomStudio),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(NeonViolet.copy(alpha = 0.35f)))
+                    colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
                 ) {
-                    Row(
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Customize what Agal speaks back when awoken (instead of \"I'm listening\"). Supports both English and Tamil.",
+                            color = TextMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // English Presets
+                        Text(text = "ENGLISH PRESETS", color = ElectricBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            replyPresetsEn.forEach { preset ->
+                                val isSelected = uiState.listeningReply == preset
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        viewModel.setCustomListeningReply(preset)
+                                        customReplyInput = preset
+                                    },
+                                    label = { Text(preset, fontSize = 12.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = ElectricBlue.copy(alpha = 0.15f),
+                                        selectedLabelColor = ElectricBlue,
+                                        containerColor = AppLightSurfaceVariant,
+                                        labelColor = TextMuted
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Tamil Presets
+                        Text(text = "தமிழ் மொழியில் (TAMIL PRESETS)", color = NeonAmber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            replyPresetsTa.forEach { preset ->
+                                val isSelected = uiState.listeningReply == preset
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        viewModel.setCustomListeningReply(preset)
+                                        customReplyInput = preset
+                                    },
+                                    label = { Text(preset, fontSize = 12.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = NeonAmber.copy(alpha = 0.2f),
+                                        selectedLabelColor = NeonAmber,
+                                        containerColor = AppLightSurfaceVariant,
+                                        labelColor = TextMuted
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Custom Reply Input
+                        OutlinedTextField(
+                            value = customReplyInput,
+                            onValueChange = { customReplyInput = it },
+                            label = { Text("Custom Reply (e.g. சொல்லுங்க or Yes boss)", color = ElectricBlue) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = ElectricBlue,
+                                unfocusedBorderColor = BorderLight,
+                                focusedTextColor = TextDark,
+                                unfocusedTextColor = TextDark,
+                                focusedContainerColor = AppLightSurfaceVariant,
+                                unfocusedContainerColor = AppLightSurfaceVariant
+                            ),
+                            trailingIcon = {
+                                IconButton(onClick = { viewModel.setCustomListeningReply(customReplyInput) }) {
+                                    Icon(Icons.Rounded.Check, contentDescription = "Save", tint = ElectricBlue)
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedButton(
+                            onClick = { viewModel.speakSample() },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(ElectricBlue))
+                        ) {
+                            Icon(Icons.Rounded.VolumeUp, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Hear Current Reply (\"${uiState.listeningReply}\")", color = ElectricBlue)
+                        }
+                    }
+                }
+            }
+
+            item {
+                // SECTION: SMART REMINDERS
+                SectionHeader("TIMED REMINDERS & ALARMS", Icons.Rounded.Alarm, ElectricBlue)
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(16.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(NeonViolet.copy(alpha = 0.2f)),
+                                    .background(ElectricBlue.copy(alpha = 0.12f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.AutoFixHigh,
+                                    imageVector = Icons.Rounded.Alarm,
                                     contentDescription = null,
-                                    tint = NeonViolet,
+                                    tint = ElectricBlue,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Custom Words & Sentences",
-                                    color = TextWhite,
+                                    text = "Hands-Free Voice Reminders",
+                                    color = TextDark,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Create custom words, replies & phone actions",
+                                    text = "AlarmManager-backed exact timed alarms & notifications",
                                     color = TextMuted,
                                     fontSize = 12.sp
                                 )
                             }
                         }
-                        Icon(
-                            imageVector = Icons.Rounded.ChevronRight,
-                            contentDescription = null,
-                            tint = NeonViolet
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Say: \"Remember me to attend meeting in 15 minutes\" or \"Remind me to call Rahul at 6 PM\". Agal will alert you on time even when screen is off.",
+                            color = TextMuted,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
                         )
                     }
                 }
@@ -211,13 +333,13 @@ fun SettingsScreen(
 
             item {
                 // SECTION 2: OFFLINE VOICE REPLIES
-                SectionHeader("OFFLINE VOICE REPLIES (TEXT-TO-SPEECH)", Icons.Rounded.VolumeUp, NeonViolet)
+                SectionHeader("OFFLINE VOICE REPLIES (NATURAL FEMALE TTS)", Icons.Rounded.VolumeUp, ElectricBlue)
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(NeonViolet.copy(alpha = 0.2f)))
+                    colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -225,11 +347,11 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Mute Voice Replies", color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Mute Voice Replies", color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             Switch(
                                 checked = uiState.isMuted,
                                 onCheckedChange = { viewModel.setMuted(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = NeonViolet, checkedTrackColor = NeonViolet.copy(alpha = 0.3f))
+                                colors = SwitchDefaults.colors(checkedThumbColor = ElectricBlue, checkedTrackColor = ElectricBlue.copy(alpha = 0.3f))
                             )
                         }
 
@@ -241,14 +363,14 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Speech Speed", color = TextMuted, fontSize = 13.sp)
-                            Text("${String.format("%.1f", uiState.speechRate)}x", color = NeonViolet, fontWeight = FontWeight.Bold)
+                            Text("${String.format("%.1f", uiState.speechRate)}x", color = ElectricBlue, fontWeight = FontWeight.Bold)
                         }
                         Slider(
                             value = uiState.speechRate,
                             onValueChange = { viewModel.setSpeechRate(it) },
                             valueRange = 0.5f..2.0f,
                             steps = 6,
-                            colors = SliderDefaults.colors(thumbColor = NeonViolet, activeTrackColor = NeonViolet)
+                            colors = SliderDefaults.colors(thumbColor = ElectricBlue, activeTrackColor = ElectricBlue)
                         )
 
                         // Pitch
@@ -256,28 +378,28 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Voice Pitch", color = TextMuted, fontSize = 13.sp)
-                            Text(String.format("%.1f", uiState.pitch), color = NeonViolet, fontWeight = FontWeight.Bold)
+                            Text("Voice Warmth & Pitch", color = TextMuted, fontSize = 13.sp)
+                            Text(String.format("%.1f", uiState.pitch), color = ElectricBlue, fontWeight = FontWeight.Bold)
                         }
                         Slider(
                             value = uiState.pitch,
                             onValueChange = { viewModel.setPitch(it) },
                             valueRange = 0.5f..1.5f,
                             steps = 5,
-                            colors = SliderDefaults.colors(thumbColor = NeonViolet, activeTrackColor = NeonViolet)
+                            colors = SliderDefaults.colors(thumbColor = ElectricBlue, activeTrackColor = ElectricBlue)
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Button(
                             onClick = { viewModel.speakSample() },
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonViolet.copy(alpha = 0.2f)),
+                            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = NeonViolet)
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = TextWhite)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Hear Sample Voice", color = NeonViolet, fontWeight = FontWeight.Bold)
+                            Text("Hear Natural Female Voice", color = TextWhite, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -290,8 +412,8 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(EmeraldGreen.copy(alpha = 0.2f)))
+                    colors = CardDefaults.cardColors(containerColor = AppLightSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(BorderLight))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -300,7 +422,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Continuous Wake Word Listening", color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Continuous Wake Word Listening", color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                 Text("Microphone spots wake word in background", color = TextMuted, fontSize = 12.sp)
                             }
                             Switch(

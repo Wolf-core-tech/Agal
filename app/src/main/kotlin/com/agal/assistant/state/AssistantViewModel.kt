@@ -42,14 +42,41 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private val customCommandRepo = com.agal.assistant.custom.CustomCommandRepository(application)
-    private val _customCommands = MutableStateFlow<List<com.agal.assistant.custom.CustomVoiceCommand>>(emptyList())
-    val customCommands: StateFlow<List<com.agal.assistant.custom.CustomVoiceCommand>> = _customCommands.asStateFlow()
+    val bucketRepo = com.agal.assistant.lifestyle.BucketListRepository(application)
+    private val _bucketItems = MutableStateFlow<List<com.agal.assistant.lifestyle.BucketItem>>(emptyList())
+    val bucketItems: StateFlow<List<com.agal.assistant.lifestyle.BucketItem>> = _bucketItems.asStateFlow()
+
+    val tripRepo = com.agal.assistant.lifestyle.TripRepository(application)
+    private val _trips = MutableStateFlow<List<com.agal.assistant.lifestyle.TripDestination>>(emptyList())
+    val trips: StateFlow<List<com.agal.assistant.lifestyle.TripDestination>> = _trips.asStateFlow()
+
+    val financeRepo = com.agal.assistant.lifestyle.FinanceRepository(application)
+    private val _transactions = MutableStateFlow<List<com.agal.assistant.lifestyle.FinanceTransaction>>(emptyList())
+    val transactions: StateFlow<List<com.agal.assistant.lifestyle.FinanceTransaction>> = _transactions.asStateFlow()
+
+    val credentialRepo = com.agal.assistant.lifestyle.CredentialVaultRepository(application)
+    private val _credentials = MutableStateFlow<List<com.agal.assistant.lifestyle.SavedCredential>>(emptyList())
+    val credentials: StateFlow<List<com.agal.assistant.lifestyle.SavedCredential>> = _credentials.asStateFlow()
+
+    private val settingsRepo = com.agal.assistant.settings.AssistantSettingsRepository(application)
 
     init {
+        val savedWakeWord = settingsRepo.getWakeWord()
+        val savedReply = settingsRepo.getListeningReply()
+        val savedLang = settingsRepo.getLanguage()
+        _uiState.update {
+            it.copy(
+                activeWakeWord = savedWakeWord,
+                listeningReply = savedReply,
+                assistantLanguage = savedLang,
+                activeStatusMessage = "Say \"$savedWakeWord\" or tap to speak"
+            )
+        }
+        porcupineEngine.currentWakeWord = savedWakeWord
+
         voiceSpeaker.init()
         porcupineEngine.init()
-        loadCustomCommands()
+        loadLifestyleData()
         voskRecognizer.initModel { isReady ->
             Log.i(TAG, "Vosk model initialization result: $isReady")
         }
@@ -83,16 +110,18 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
         vibratePhone()
         porcupineEngine.stop()
 
+        val replyToSpeak = _uiState.value.listeningReply.ifBlank { "I'm listening." }
+
         _uiState.update {
             it.copy(
                 status = AssistantStatus.WAKE_WORD_TRIGGERED,
-                activeStatusMessage = "Awoken by \"$keyword\"!"
+                activeStatusMessage = replyToSpeak
             )
         }
 
         viewModelScope.launch {
-            voiceSpeaker.speak("I'm listening.")
-            delay(1000)
+            voiceSpeaker.speak(replyToSpeak)
+            delay(1200)
             startCommandListening()
         }
     }
@@ -130,6 +159,7 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
             }
 
             voiceSpeaker.speak(result.spokenReply)
+            loadLifestyleData()
 
             delay(3000)
             if (_uiState.value.isContinuousListening) {
@@ -164,7 +194,19 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
     fun setCustomWakeWord(name: String) {
         val clean = name.trim().ifEmpty { "Hey Agal" }
         porcupineEngine.currentWakeWord = clean
-        _uiState.update { it.copy(activeWakeWord = clean) }
+        settingsRepo.setWakeWord(clean)
+        _uiState.update { it.copy(activeWakeWord = clean, activeStatusMessage = "Say \"$clean\" or tap to speak") }
+    }
+
+    fun setCustomListeningReply(reply: String) {
+        val clean = reply.trim().ifEmpty { "I'm listening." }
+        settingsRepo.setListeningReply(clean)
+        _uiState.update { it.copy(listeningReply = clean) }
+    }
+
+    fun setLanguage(lang: String) {
+        settingsRepo.setLanguage(lang)
+        _uiState.update { it.copy(assistantLanguage = lang) }
     }
 
     fun setContinuousListening(enabled: Boolean) {
@@ -203,38 +245,55 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
         voiceSpeaker.speak("Hello! I am Agal, speaking back to you completely offline.")
     }
 
-    fun loadCustomCommands() {
-        _customCommands.value = customCommandRepo.getCommands()
+    fun loadLifestyleData() {
+        _bucketItems.value = bucketRepo.getItems()
+        _trips.value = tripRepo.getTrips()
+        _transactions.value = financeRepo.getTransactions()
+        _credentials.value = credentialRepo.getCredentials()
     }
 
-    fun addCustomCommand(command: com.agal.assistant.custom.CustomVoiceCommand) {
-        _customCommands.value = customCommandRepo.addCommand(command)
+    // Bucket list methods
+    fun addBucketItem(text: String) {
+        val (_, list) = bucketRepo.addItem(text)
+        _bucketItems.value = list
     }
 
-    fun updateCustomCommand(command: com.agal.assistant.custom.CustomVoiceCommand) {
-        _customCommands.value = customCommandRepo.updateCommand(command)
+    fun toggleBucketItem(id: String) {
+        _bucketItems.value = bucketRepo.toggleComplete(id)
     }
 
-    fun deleteCustomCommand(id: String) {
-        _customCommands.value = customCommandRepo.deleteCommand(id)
+    fun deleteBucketItem(id: String) {
+        _bucketItems.value = bucketRepo.deleteItem(id)
     }
 
-    fun toggleCustomCommand(id: String, isEnabled: Boolean) {
-        _customCommands.value = customCommandRepo.toggleCommand(id, isEnabled)
+    // Trip methods
+    fun addTrip(destination: String, expense: Double? = null) {
+        val (_, list) = tripRepo.addTrip(destination, expense)
+        _trips.value = list
     }
 
-    fun testCustomCommand(command: com.agal.assistant.custom.CustomVoiceCommand) {
-        viewModelScope.launch {
-            val reply = customCommandRepo.executeAction(command)
-            voiceSpeaker.speak(reply)
-            val entry = CommandHistoryEntry(
-                userInput = command.triggerPhrase,
-                assistantReply = reply,
-                commandType = com.agal.assistant.engine.models.CommandType.CUSTOM_COMMAND,
-                isSuccess = true
-            )
-            _uiState.update { it.copy(history = listOf(entry) + it.history) }
-        }
+    fun deleteTrip(id: String) {
+        _trips.value = tripRepo.deleteTrip(id)
+    }
+
+    // Finance methods
+    fun addFinanceTransaction(title: String, amount: Double, category: String, isIncome: Boolean) {
+        val type = if (isIncome) com.agal.assistant.lifestyle.FinanceType.INCOME else com.agal.assistant.lifestyle.FinanceType.EXPENSE
+        val (_, list) = financeRepo.addTransaction(title, amount, category, type)
+        _transactions.value = list
+    }
+
+    fun deleteFinanceTransaction(id: String) {
+        _transactions.value = financeRepo.deleteTransaction(id)
+    }
+
+    // Credential Vault methods
+    fun saveCredential(accountName: String, userIdOrEmail: String, pass: String, notes: String = "") {
+        _credentials.value = credentialRepo.saveCredential(accountName, userIdOrEmail, pass, notes)
+    }
+
+    fun deleteCredential(id: String) {
+        _credentials.value = credentialRepo.deleteCredential(id)
     }
 
     fun clearHistory() {

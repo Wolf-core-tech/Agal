@@ -11,19 +11,19 @@ val Typography = Typography(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
-        color = TextWhite
+        color = TextDark
     ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
-        color = TextWhite
+        color = TextDark
     ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        color = TextWhite
+        color = TextDark
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.Default,

@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Install & Launch on SM A156E",
+            "type": "shell",
+            "command": "./gradlew installDebug; C:\\Users\\venka\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe -s RZCX20LSQ7V shell am start -n com.agal.assistant/.MainActivity",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Debug APK",
+            "type": "shell",
+            "command": "./gradlew assembleDebug",
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}

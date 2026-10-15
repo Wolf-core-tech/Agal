@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,7 +44,8 @@ fun MainAssistantScreen(
     onNavigateToGuide: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
     onNavigateToConfigurator: () -> Unit,
-    onNavigateToCustomStudio: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToLifestyle: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
@@ -64,7 +66,7 @@ fun MainAssistantScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "AGAL",
-                            color = TextWhite,
+                            color = TextDark,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.5.sp
@@ -72,12 +74,15 @@ fun MainAssistantScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToCustomStudio) {
-                        Icon(Icons.Rounded.AutoFixHigh, contentDescription = "Custom Studio", tint = NeonViolet)
+                    IconButton(onClick = onNavigateToLifestyle) {
+                        Icon(Icons.Rounded.Luggage, contentDescription = "Trips & Finances", tint = NeonCyan)
+                    }
+                    IconButton(onClick = onNavigateToProfile) {
+                        Icon(Icons.Rounded.AccountCircle, contentDescription = "Profile & Vault", tint = NeonAmber)
                     }
                     PrivacyShieldBadge(onClick = onNavigateToPrivacy)
                     IconButton(onClick = onNavigateToConfigurator) {
-                        Icon(Icons.Rounded.Tune, contentDescription = "Configurator", tint = NeonCyan)
+                        Icon(Icons.Rounded.Tune, contentDescription = "Configurator", tint = TextMuted)
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = TextMuted)
@@ -119,17 +124,11 @@ fun MainAssistantScreen(
             item {
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Pulsing Voice Orb
+                // Pulsing Voice Orb (Activates Hands-Free on 'Hey Agal')
                 GlowingVoiceOrb(
                     status = uiState.status,
                     isSpeaking = uiState.isSpeaking,
-                    onTap = {
-                        if (uiState.status == AssistantStatus.IDLE) {
-                            viewModel.startWakeWordListening()
-                        } else {
-                            viewModel.startCommandListening()
-                        }
-                    }
+                    onTap = {}
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -147,7 +146,7 @@ fun MainAssistantScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = uiState.activeStatusMessage,
-                            color = TextWhite,
+                            color = TextDark,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -155,8 +154,9 @@ fun MainAssistantScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "“${uiState.lastRecognizedText}”",
-                                color = TextMuted,
-                                fontSize = 12.sp
+                                color = ElectricBlue,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
@@ -164,7 +164,7 @@ fun MainAssistantScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Custom Rules Studio Shortcut Card
+                // Scheduled Reminders Shortcut Card (Electric Blue & White)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -172,13 +172,13 @@ fun MainAssistantScreen(
                         .background(
                             Brush.horizontalGradient(
                                 listOf(
-                                    DarkSurfaceVariant,
-                                    NeonViolet.copy(alpha = 0.2f)
+                                    AppLightSurface,
+                                    ElectricBlue.copy(alpha = 0.08f)
                                 )
                             )
                         )
-                        .border(1.dp, NeonViolet.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-                        .clickable(onClick = onNavigateToCustomStudio)
+                        .border(1.dp, ElectricBlue.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                        .clickable { viewModel.simulateSpokenPhrase("Remember me to take my break in 10 minutes") }
                         .padding(14.dp)
                 ) {
                     Row(
@@ -191,26 +191,26 @@ fun MainAssistantScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(NeonViolet.copy(alpha = 0.25f)),
+                                    .background(ElectricBlue.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.AutoFixHigh,
+                                    imageVector = Icons.Rounded.Alarm,
                                     contentDescription = null,
-                                    tint = NeonViolet,
+                                    tint = ElectricBlue,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Custom Words & Sentences",
-                                    color = TextWhite,
+                                    text = "Smart Timed Reminders",
+                                    color = TextDark,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Create custom phrases & assign phone actions",
+                                    text = "Say \"Hey Agal, remember me to [task] in 10 minutes\"",
                                     color = TextMuted,
                                     fontSize = 11.sp
                                 )
@@ -219,9 +219,176 @@ fun MainAssistantScreen(
                         Icon(
                             imageVector = Icons.Rounded.ChevronRight,
                             contentDescription = null,
-                            tint = NeonViolet
+                            tint = ElectricBlue
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // HOME PAGE BUCKET LIST SECTION
+                val bucketList by viewModel.bucketItems.collectAsState()
+                var showAddGoalDialog by remember { mutableStateOf(false) }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.FormatListNumbered,
+                            contentDescription = null,
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "MY BUCKET LIST (${bucketList.size})",
+                            color = ElectricBlue,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp
+                        )
+                    }
+                    TextButton(onClick = { showAddGoalDialog = true }) {
+                        Text("+ Add Goal", color = ElectricBlue, fontSize = 12.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                if (bucketList.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(DarkSurfaceVariant)
+                            .padding(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Say \"Add [goal] to bucket list\" to plan your dreams!",
+                            color = TextMuted,
+                            fontSize = 12.sp
+                        )
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        bucketList.forEachIndexed { index, item ->
+                            val itemNumber = index + 1
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(DarkSurface.copy(alpha = 0.85f))
+                                    .border(
+                                        1.dp,
+                                        if (item.isCompleted) EmeraldGreen.copy(alpha = 0.4f) else BorderSubtle,
+                                        RoundedCornerShape(14.dp)
+                                    )
+                                    .clickable { viewModel.toggleBucketItem(item.id) }
+                                    .padding(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Top,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(26.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (item.isCompleted) EmeraldGreen.copy(alpha = 0.25f)
+                                                    else NeonCyan.copy(alpha = 0.15f)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "$itemNumber",
+                                                color = if (item.isCompleted) EmeraldGreen else NeonCyan,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Black
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = item.text,
+                                                color = if (item.isCompleted) TextMuted else TextDark,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                style = if (item.isCompleted) androidx.compose.ui.text.TextStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough) else androidx.compose.ui.text.TextStyle()
+                                            )
+                                            if (item.easeAnalysis.isNotBlank()) {
+                                                Spacer(modifier = Modifier.height(3.dp))
+                                                Text(
+                                                    text = "💡 Ease: ${item.easeAnalysis}",
+                                                    color = NeonAmber,
+                                                    fontSize = 11.sp,
+                                                    lineHeight = 15.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteBucketItem(item.id) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = "Delete",
+                                            tint = TextMuted,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (showAddGoalDialog) {
+                    var goalInput by remember { mutableStateOf("") }
+                    AlertDialog(
+                        onDismissRequest = { showAddGoalDialog = false },
+                        title = { Text("Add to Bucket List", color = TextDark, fontWeight = FontWeight.Bold) },
+                        text = {
+                            OutlinedTextField(
+                                value = goalInput,
+                                onValueChange = { goalInput = it },
+                                label = { Text("Goal or Dream (e.g. Visit Japan, Read 10 books)", color = TextMuted) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextDark,
+                                    unfocusedTextColor = TextDark,
+                                    focusedBorderColor = ElectricBlue,
+                                    unfocusedBorderColor = BorderLight
+                                )
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    if (goalInput.isNotBlank()) {
+                                        viewModel.addBucketItem(goalInput)
+                                        showAddGoalDialog = false
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+                            ) {
+                                Text("Add Goal", color = TextWhite, fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showAddGoalDialog = false }) { Text("Cancel", color = TextMuted) }
+                        },
+                        containerColor = AppLightSurface
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -397,11 +564,11 @@ private fun BottomControlBar(
                     .weight(1f)
                     .clip(RoundedCornerShape(24.dp)),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = DarkSurfaceVariant,
-                    unfocusedContainerColor = DarkSurfaceVariant,
-                    focusedTextColor = TextWhite,
-                    unfocusedTextColor = TextWhite,
-                    cursorColor = NeonCyan,
+                    focusedContainerColor = AppLightSurfaceVariant,
+                    unfocusedContainerColor = AppLightSurfaceVariant,
+                    focusedTextColor = TextDark,
+                    unfocusedTextColor = TextDark,
+                    cursorColor = ElectricBlue,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
                 ),
@@ -409,7 +576,7 @@ private fun BottomControlBar(
                 keyboardActions = KeyboardActions(onSend = { onSendText() }),
                 trailingIcon = {
                     IconButton(onClick = onSendText) {
-                        Icon(Icons.Rounded.Send, contentDescription = "Send", tint = NeonCyan)
+                        Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Send", tint = ElectricBlue)
                     }
                 },
                 singleLine = true
@@ -417,27 +584,19 @@ private fun BottomControlBar(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            val isListening = uiState.status == AssistantStatus.LISTENING_COMMAND ||
-                    uiState.status == AssistantStatus.LISTENING_WAKE_WORD
-
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            if (isListening) listOf(Color(0xFFFF0055), Color(0xFFFF5252))
-                            else listOf(NeonCyan, CyanGlow)
-                        )
-                    )
-                    .clickable(onClick = onMicTap),
+                    .background(DeepBlack)
+                    .border(1.5.dp, ElectricBlue, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isListening) Icons.Rounded.Stop else Icons.Rounded.Mic,
-                    contentDescription = "Mic",
-                    tint = DarkBackground,
-                    modifier = Modifier.size(26.dp)
+                    imageVector = Icons.Rounded.RecordVoiceOver,
+                    contentDescription = "Voice Active",
+                    tint = ElectricBlue,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }

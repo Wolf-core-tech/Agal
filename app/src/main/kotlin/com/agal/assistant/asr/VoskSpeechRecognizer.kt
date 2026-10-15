@@ -20,7 +20,7 @@ class VoskSpeechRecognizer(
     private var speechService: SpeechService? = null
     private var isListening = false
 
-    private val grammarJson = """["open youtube", "turn on bluetooth", "turn off bluetooth", "open camera", "turn on flashlight", "turn off flashlight", "what time is it", "what is today's date", "battery status", "tell me a joke", "open settings", "volume up", "volume down", "mute", "hey agal", "agal", "help", "[unk]"]"""
+    private val grammarJson = """["open youtube", "turn on bluetooth", "turn off bluetooth", "turn on wifi", "turn off wifi", "open camera", "take a photo", "take a picture", "take photo", "take pic", "take video", "start recording", "pause recording", "stop recording", "resume recording", "end recording", "turn on flashlight", "turn off flashlight", "what time is it", "what is today's date", "battery status", "tell me a joke", "open settings", "volume up", "volume down", "mute", "unmute", "full volume", "do not disturb", "turn on silent", "turn off silent", "airplane mode", "hotspot", "clear notifications", "answer call", "attend the call", "hang up", "end call", "cut the call", "play music", "next song", "previous song", "hey agal", "agal", "help", "[unk]"]"""
 
     fun initModel(onModelReady: (Boolean) -> Unit) {
         StorageService.unpack(context, "model-en-us", "model",
