@@ -1,16 +1,16 @@
 package com.agal.assistant.state
 
 import android.app.Application
+import android.content.Intent
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.agal.assistant.asr.VoskSpeechRecognizer
 import com.agal.assistant.engine.CommandEngine
 import com.agal.assistant.engine.models.CommandHistoryEntry
+import com.agal.assistant.service.AgalVoiceService
 import com.agal.assistant.tts.AndroidVoiceSpeaker
-import com.agal.assistant.wakeword.PorcupineWakeWordEngine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,20 +26,65 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
 
     private val commandEngine = CommandEngine(application)
+    private var currentSpeakJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Broadcast receiver that bridges service events into ViewModel UI state.
+     *
+     * WAKE_EVENT    — service detected the wake word while screen was off;
+     *                 ViewModel animates the wake response.
+     * SPEECH_EVENT  — service forwarding live ASR text during command listening.
+     * COMMAND_RESULT — service executed a command in the background (screen was off).
+     * STOP_SPEAKING — another component wants TTS stopped.
+     */
+    private val serviceEventReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            when (intent?.action) {
+                AgalVoiceService.BROADCAST_WAKE_EVENT -> {
+                    val keyword = intent.getStringExtra("KEYWORD") ?: "Agal"
+                    val inlineCommand = intent.getStringExtra("INLINE_COMMAND") ?: ""
+                    if (inlineCommand.isNotEmpty()) {
+                        processSpokenCommand(inlineCommand)
+                    } else {
+                        onWakeWordTriggered(keyword)
+                    }
+                }
+                AgalVoiceService.BROADCAST_SPEECH_EVENT -> {
+                    val text = intent.getStringExtra("TEXT") ?: return
+                    val isFinal = intent.getBooleanExtra("IS_FINAL", false)
+                    _uiState.update { it.copy(lastRecognizedText = text) }
+                    if (isFinal && text.isNotBlank()) {
+                        processSpokenCommand(text)
+                    }
+                }
+                AgalVoiceService.BROADCAST_COMMAND_RESULT -> {
+                    // Service executed a command while screen was off — update history
+                    val reply = intent.getStringExtra("SPOKEN_REPLY") ?: return
+                    val title = intent.getStringExtra("DISPLAY_TITLE") ?: ""
+                    val desc = intent.getStringExtra("DISPLAY_DESC") ?: ""
+                    val ok = intent.getBooleanExtra("IS_SUCCESS", true)
+                    val entry = CommandHistoryEntry(
+                        userInput = title,
+                        assistantReply = reply,
+                        commandType = com.agal.assistant.engine.models.CommandType.UNKNOWN,
+                        isSuccess = ok
+                    )
+                    _uiState.update { current ->
+                        current.copy(
+                            status = AssistantStatus.IDLE,
+                            activeStatusMessage = reply,
+                            history = listOf(entry) + current.history,
+                            totalCommandsExecuted = current.totalCommandsExecuted + 1
+                        )
+                    }
+                }
+                "com.agal.assistant.STOP_SPEAKING" -> stopSpeaking(broadcast = false)
+            }
+        }
+    }
 
     private val voiceSpeaker = AndroidVoiceSpeaker(application) { isSpeaking ->
         _uiState.update { it.copy(isSpeaking = isSpeaking) }
-    }
-
-    private val porcupineEngine = PorcupineWakeWordEngine(application) { detectedKeyword ->
-        onWakeWordTriggered(detectedKeyword)
-    }
-
-    private val voskRecognizer = VoskSpeechRecognizer(application) { text, isFinal ->
-        _uiState.update { it.copy(lastRecognizedText = text) }
-        if (isFinal && text.isNotBlank()) {
-            processSpokenCommand(text)
-        }
     }
 
     val bucketRepo = com.agal.assistant.lifestyle.BucketListRepository(application)
@@ -69,19 +114,25 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
                 activeWakeWord = savedWakeWord,
                 listeningReply = savedReply,
                 assistantLanguage = savedLang,
-                activeStatusMessage = "Say \"$savedWakeWord\" or tap to speak"
+                activeStatusMessage = "Say \"$savedWakeWord\" or \"Agal\""
             )
         }
-        porcupineEngine.currentWakeWord = savedWakeWord
 
-        voiceSpeaker.init()
-        porcupineEngine.init()
-        loadLifestyleData()
-        voskRecognizer.initModel { isReady ->
-            Log.i(TAG, "Vosk model initialization result: $isReady")
+        // Subscribe to service broadcast events
+        val filter = android.content.IntentFilter().apply {
+            addAction(AgalVoiceService.BROADCAST_WAKE_EVENT)
+            addAction(AgalVoiceService.BROADCAST_SPEECH_EVENT)
+            addAction(AgalVoiceService.BROADCAST_COMMAND_RESULT)
+            addAction("com.agal.assistant.STOP_SPEAKING")
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            application.registerReceiver(serviceEventReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            application.registerReceiver(serviceEventReceiver, filter)
         }
 
-        // Default start wake-word listening
+        voiceSpeaker.init()
+        loadLifestyleData()
         startWakeWordListening()
     }
 
@@ -90,7 +141,7 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update {
             it.copy(
                 status = AssistantStatus.LISTENING_WAKE_WORD,
-                activeStatusMessage = "Listening for \"${it.activeWakeWord}\"..."
+                activeStatusMessage = "Listening for \"${it.activeWakeWord}\" or \"Agal\"..."
             )
         }
     }
@@ -106,11 +157,11 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private fun onWakeWordTriggered(keyword: String) {
+    fun onWakeWordTriggered(keyword: String) {
         vibratePhone()
         porcupineEngine.stop()
 
-        val replyToSpeak = _uiState.value.listeningReply.ifBlank { "I'm listening." }
+        val replyToSpeak = _uiState.value.listeningReply.ifBlank { "Yes Venkat" }
 
         _uiState.update {
             it.copy(
@@ -119,16 +170,56 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
 
-        viewModelScope.launch {
+        currentSpeakJob?.cancel()
+        currentSpeakJob = viewModelScope.launch {
             voiceSpeaker.speak(replyToSpeak)
             delay(1200)
             startCommandListening()
         }
     }
 
+    fun stopSpeaking(broadcast: Boolean = true) {
+        Log.i(TAG, "stopSpeaking invoked — stopping TTS and cancelling coroutines")
+        currentSpeakJob?.cancel()
+        currentSpeakJob = null
+        voiceSpeaker.stop()
+        voskRecognizer.stopListening()
+
+        if (broadcast) {
+            try {
+                val stopIntent = android.content.Intent("com.agal.assistant.STOP_SPEAKING").apply {
+                    setPackage(getApplication<Application>().packageName)
+                }
+                getApplication<Application>().sendBroadcast(stopIntent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error broadcasting stop: ${e.localizedMessage}")
+            }
+        }
+
+        _uiState.update {
+            it.copy(
+                isSpeaking = false,
+                status = if (it.isContinuousListening) AssistantStatus.LISTENING_WAKE_WORD else AssistantStatus.IDLE,
+                activeStatusMessage = if (it.isContinuousListening) "Stopped. Listening for \"${it.activeWakeWord}\" or \"Agal\"..." else "Stopped. Ready."
+            )
+        }
+
+        if (_uiState.value.isContinuousListening) {
+            startWakeWordListening()
+        }
+    }
+
     fun processSpokenCommand(commandText: String) {
         val trimmed = commandText.trim()
         if (trimmed.isEmpty()) return
+
+        val lower = trimmed.lowercase()
+        if (lower == "stop" || lower == "stop speaking" || lower == "be quiet" ||
+            lower == "shut up" || lower == "quiet" || lower == "stop agal" ||
+            lower == "agal stop" || lower == "cancel") {
+            stopSpeaking()
+            return
+        }
 
         voskRecognizer.stopListening()
         _uiState.update {
@@ -139,7 +230,8 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
 
-        viewModelScope.launch {
+        currentSpeakJob?.cancel()
+        currentSpeakJob = viewModelScope.launch {
             val result = commandEngine.execute(trimmed)
 
             val entry = CommandHistoryEntry(
@@ -168,7 +260,7 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.update {
                     it.copy(
                         status = AssistantStatus.IDLE,
-                        activeStatusMessage = "Ready. Tap mic to speak."
+                        activeStatusMessage = "Ready. Say \"${it.activeWakeWord}\" or tap mic."
                     )
                 }
             }
@@ -176,19 +268,39 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun simulateSpokenPhrase(phrase: String) {
-        val wakeWord = _uiState.value.activeWakeWord.lowercase()
-        val lower = phrase.lowercase()
+        val lower = phrase.lowercase().trim()
 
-        if (lower.contains(wakeWord) || lower.startsWith("hey agal") || lower.startsWith("agal")) {
-            val afterWake = phrase.substringAfter(wakeWord, "").trim()
-            if (afterWake.isNotEmpty()) {
-                processSpokenCommand(afterWake)
+        if (lower == "stop" || lower == "stop speaking" || lower == "shut up" || lower == "be quiet" || lower == "stop agal") {
+            stopSpeaking()
+            return
+        }
+
+        val wakeWord = _uiState.value.activeWakeWord.lowercase().trim()
+        val isWake = lower == wakeWord || lower == "hey agal" || lower == "agal" ||
+                lower.startsWith("$wakeWord ") || lower.startsWith("hey agal ") || lower.startsWith("agal ")
+
+        if (isWake) {
+            val commandPart = when {
+                lower.startsWith("$wakeWord ") -> lower.removePrefix("$wakeWord ").trim()
+                lower.startsWith("hey agal ") -> lower.removePrefix("hey agal ").trim()
+                lower.startsWith("agal ") -> lower.removePrefix("agal ").trim()
+                else -> ""
+            }
+            if (commandPart.isNotEmpty()) {
+                processSpokenCommand(commandPart)
             } else {
                 onWakeWordTriggered(_uiState.value.activeWakeWord)
             }
         } else {
             processSpokenCommand(phrase)
         }
+    }
+
+    fun clearAllPredefinedData() {
+        bucketRepo.clearAll()
+        tripRepo.clearAll()
+        financeRepo.clearAll()
+        loadLifestyleData()
     }
 
     fun setCustomWakeWord(name: String) {
@@ -313,6 +425,11 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
 
     override fun onCleared() {
         super.onCleared()
+        try {
+            getApplication<Application>().unregisterReceiver(stopBroadcastReceiver)
+        } catch (e: Exception) {
+            // Already unregistered
+        }
         porcupineEngine.release()
         voskRecognizer.release()
         voiceSpeaker.shutdown()

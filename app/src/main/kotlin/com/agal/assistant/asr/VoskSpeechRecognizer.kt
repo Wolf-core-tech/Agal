@@ -20,7 +20,12 @@ class VoskSpeechRecognizer(
     private var speechService: SpeechService? = null
     private var isListening = false
 
-    private val grammarJson = """["open youtube", "turn on bluetooth", "turn off bluetooth", "turn on wifi", "turn off wifi", "open camera", "take a photo", "take a picture", "take photo", "take pic", "take video", "start recording", "pause recording", "stop recording", "resume recording", "end recording", "turn on flashlight", "turn off flashlight", "what time is it", "what is today's date", "battery status", "tell me a joke", "open settings", "volume up", "volume down", "mute", "unmute", "full volume", "do not disturb", "turn on silent", "turn off silent", "airplane mode", "hotspot", "clear notifications", "answer call", "attend the call", "hang up", "end call", "cut the call", "play music", "next song", "previous song", "hey agal", "agal", "help", "[unk]"]"""
+    /**
+     * Narrow grammar for standby wake-word detection.
+     * Vosk will only recognise these words/phrases — everything else is discarded.
+     * This dramatically reduces false wake-word triggers and CPU usage.
+     */
+    private val standbyGrammarJson = """["agal", "hey agal", "jarvis", "[unk]"]"""
 
     fun initModel(onModelReady: (Boolean) -> Unit) {
         StorageService.unpack(context, "model-en-us", "model",
@@ -36,24 +41,51 @@ class VoskSpeechRecognizer(
         )
     }
 
-    fun startListening() {
-        if (isListening) return
-
+    /**
+     * STANDBY mode: uses the narrow wake-word grammar.
+     * Vosk only recognises "agal" / "hey agal" — all other audio is silently ignored.
+     * Low CPU, no false command triggers.
+     */
+    fun startListeningStandby() {
+        if (isListening) stopListening()
         try {
             if (model != null) {
-                // Open vocabulary recognizer: recognizes all custom words, sentences, and commands
+                val recognizer = Recognizer(model, 16000.0f, standbyGrammarJson)
+                speechService = SpeechService(recognizer, 16000.0f)
+                speechService?.startListening(this)
+                isListening = true
+                Log.i(TAG, "Vosk STANDBY (wake-word grammar) listening started")
+            } else {
+                Log.w(TAG, "Vosk model not yet loaded — standby not started")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting Vosk standby: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * COMMAND mode: open vocabulary — recognises any spoken words.
+     * Used after the wake word fires to capture the user's full command.
+     */
+    fun startListeningCommand() {
+        if (isListening) stopListening()
+        try {
+            if (model != null) {
                 val recognizer = Recognizer(model, 16000.0f)
                 speechService = SpeechService(recognizer, 16000.0f)
                 speechService?.startListening(this)
                 isListening = true
-                Log.i(TAG, "Vosk offline open-vocabulary speech recognition started")
+                Log.i(TAG, "Vosk COMMAND (open vocabulary) listening started")
             } else {
-                Log.w(TAG, "Vosk model not yet loaded. Using direct command loop.")
+                Log.w(TAG, "Vosk model not yet loaded — command not started")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting Vosk speech service: ${e.localizedMessage}")
+            Log.e(TAG, "Error starting Vosk command: ${e.localizedMessage}")
         }
     }
+
+    /** Legacy method kept for backward compatibility with ViewModel direct calls */
+    fun startListening() = startListeningCommand()
 
     fun stopListening() {
         if (!isListening) return

@@ -45,17 +45,32 @@ class BucketListRepository(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getItems(): List<BucketItem> {
-        val raw = prefs.getString(KEY_ITEMS, null) ?: return getDefaultItems()
+        val raw = prefs.getString(KEY_ITEMS, null) ?: return emptyList()
         return try {
             val array = JSONArray(raw)
             val list = mutableListOf<BucketItem>()
             for (i in 0 until array.length()) {
                 list.add(BucketItem.fromJson(array.getJSONObject(i)))
             }
-            list
+            // If stored list only contains legacy predefined mock items, clear them
+            val isLegacyMock = list.all { item ->
+                item.text.contains("Scuba diving", ignoreCase = true) ||
+                item.text.contains("Read 12 books", ignoreCase = true) ||
+                item.text.contains("guitar chords", ignoreCase = true)
+            }
+            if (isLegacyMock && list.isNotEmpty()) {
+                clearAll()
+            } else {
+                list
+            }
         } catch (e: Exception) {
-            getDefaultItems()
+            emptyList()
         }
+    }
+
+    fun clearAll(): List<BucketItem> {
+        prefs.edit().remove(KEY_ITEMS).apply()
+        return emptyList()
     }
 
     fun addItem(rawText: String): Pair<BucketItem, List<BucketItem>> {
@@ -109,19 +124,6 @@ class BucketListRepository(private val context: Context) {
     }
 
     private fun getDefaultItems(): List<BucketItem> {
-        return listOf(
-            BucketItem(
-                text = "Scuba diving in Andaman",
-                easeAnalysis = "Fun Adventure — Plan a weekend getaway, book a slot 2 weeks in advance."
-            ),
-            BucketItem(
-                text = "Read 12 books this year",
-                easeAnalysis = "Easy with consistency — Read 15 pages before sleeping each night."
-            ),
-            BucketItem(
-                text = "Learn to play guitar chords",
-                easeAnalysis = "Moderate Effort — Practice 20 minutes daily, achievable in 30 days."
-            )
-        )
+        return emptyList()
     }
 }

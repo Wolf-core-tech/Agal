@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 
 data class WakeWordSettings(
     val activeWakeWord: String = "Hey Agal",
-    val listeningReplyText: String = "I'm listening.",
+    val listeningReplyText: String = "Yes Venkat",
     val language: String = "EN" // "EN" or "TA"
 )
 
@@ -18,10 +18,10 @@ class AssistantSettingsRepository(context: Context) {
 
         // Preset listening replies in English and Tamil
         val LISTENING_REPLY_PRESETS_EN = listOf(
-            "I'm listening.",
+            "Yes Venkat",
+            "Yes Venkat, I'm listening.",
             "Yes, I'm here.",
-            "How can I help you?",
-            "Tell me Saran, I'm listening.",
+            "How can I help you, Venkat?",
             "Agal here, go ahead!"
         )
 
@@ -53,11 +53,17 @@ class AssistantSettingsRepository(context: Context) {
     }
 
     fun getListeningReply(): String {
-        return prefs.getString(KEY_LISTENING_REPLY, "I'm listening.") ?: "I'm listening."
+        val saved = prefs.getString(KEY_LISTENING_REPLY, null)
+        return if (saved.isNullOrBlank() || saved == "I'm listening." || saved.contains("Saran")) {
+            "Yes Venkat"
+        } else {
+            saved
+        }
     }
 
     fun setListeningReply(reply: String) {
-        prefs.edit().putString(KEY_LISTENING_REPLY, reply.trim()).apply()
+        val clean = reply.trim().ifEmpty { "Yes Venkat" }
+        prefs.edit().putString(KEY_LISTENING_REPLY, clean).apply()
     }
 
     fun getLanguage(): String {

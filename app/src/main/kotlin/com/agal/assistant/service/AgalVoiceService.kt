@@ -15,11 +15,13 @@ import com.agal.assistant.MainActivity
 import com.agal.assistant.R
 import com.agal.assistant.asr.VoskSpeechRecognizer
 import com.agal.assistant.engine.CommandEngine
+import com.agal.assistant.settings.AssistantSettingsRepository
 import com.agal.assistant.tts.AndroidVoiceSpeaker
 import com.agal.assistant.wakeword.PorcupineWakeWordEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class AgalVoiceService : Service() {
@@ -40,15 +42,57 @@ class AgalVoiceService : Service() {
 
     private var lastWakeTime: Long = 0
 
+    /** True when the UI (MainActivity) is in the foreground and handling commands */
+    private var isUiActive: Boolean = false
+
+    /** True once the wake word fires — Vosk switches to open-vocabulary command mode */
+    private var isCommandListeningMode: Boolean = false
+
+    companion object {
+        const val ACTION_STOP_SPEAKING = "com.agal.assistant.ACTION_STOP_SPEAKING"
+        const val ACTION_RESTART_LISTENING = "com.agal.assistant.RESTART_LISTENING"
+        const val ACTION_UI_ACTIVE = "com.agal.assistant.UI_ACTIVE"
+        const val ACTION_UI_INACTIVE = "com.agal.assistant.UI_INACTIVE"
+        const val BROADCAST_WAKE_EVENT = "com.agal.assistant.WAKE_EVENT"
+        const val BROADCAST_SPEECH_EVENT = "com.agal.assistant.SPEECH_EVENT"
+        const val BROADCAST_COMMAND_RESULT = "com.agal.assistant.COMMAND_RESULT"
+
+        private const val WAKE_COOLDOWN_MS = 3000L
+        private const val COMMAND_LISTEN_TIMEOUT_MS = 8000L
+    }
+
+    private val controlReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.agal.assistant.STOP_SPEAKING" -> voiceSpeaker?.stop()
+                ACTION_UI_ACTIVE -> { isUiActive = true; Log.d(TAG, "UI active") }
+                ACTION_UI_INACTIVE -> { isUiActive = false; Log.d(TAG, "UI inactive") }
+                ACTION_RESTART_LISTENING -> returnToStandby()
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
 
-        val notification = buildOngoingNotification("Listening for \"Hey Agal\" or \"Agal\"")
+        val notification = buildOngoingNotification("Listening for \"Agal\"...")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } else {
             startForeground(NOTIF_ID, notification)
+        }
+
+        val filter = android.content.IntentFilter().apply {
+            addAction("com.agal.assistant.STOP_SPEAKING")
+            addAction(ACTION_UI_ACTIVE)
+            addAction(ACTION_UI_INACTIVE)
+            addAction(ACTION_RESTART_LISTENING)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(controlReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(controlReceiver, filter)
         }
 
         acquireWakeLock()
@@ -59,213 +103,222 @@ class AgalVoiceService : Service() {
         commandEngine = CommandEngine(this)
         voiceSpeaker = AndroidVoiceSpeaker(this).apply { init() }
 
-        // 1. Porcupine Engine (for custom wake words if access key is configured)
+        // Porcupine: hardware-accelerated wake word (only if AccessKey is configured)
         porcupineEngine = PorcupineWakeWordEngine(this) { detectedKeyword ->
             Log.i(TAG, "Porcupine detected wake word: $detectedKeyword")
-            handleLockScreenWake(detectedKeyword, "")
+            onWakeWordDetected(detectedKeyword, "")
         }
         porcupineEngine?.init()
         porcupineEngine?.start()
 
-        // 2. Vosk Offline Acoustic Recognizer (100% offline continuous listener)
+        // Vosk: THE single mic owner — handles standby (wake-word check) AND command listening
         voskRecognizer = VoskSpeechRecognizer(this) { text, isFinal ->
-            handleRecognizedSpeech(text, isFinal)
+            handleVoskResult(text, isFinal)
         }
         voskRecognizer?.initModel { isReady ->
-            Log.i(TAG, "Vosk offline model initialized in service: $isReady")
-            if (isReady) {
-                voskRecognizer?.startListening()
+            Log.i(TAG, "Vosk model ready: $isReady")
+            if (isReady) voskRecognizer?.startListeningStandby()
+        }
+    }
+
+    /**
+     * Routes Vosk results based on the current listening mode.
+     * STANDBY: check for wake word only — ignore everything else (no false triggers)
+     * COMMAND: forward speech to UI, or execute locally if UI is not visible
+     */
+    private fun handleVoskResult(text: String, isFinal: Boolean) {
+        val lower = text.lowercase().trim()
+        if (lower.isEmpty()) return
+
+        if (isCommandListeningMode) {
+            if (isUiActive) {
+                sendBroadcast(Intent(BROADCAST_SPEECH_EVENT).apply {
+                    putExtra("TEXT", text)
+                    putExtra("IS_FINAL", isFinal)
+                    setPackage(packageName)
+                })
+            }
+            if (isFinal && !isUiActive && lower.isNotBlank()) {
+                isCommandListeningMode = false
+                voskRecognizer?.stopListening()
+                executeCommandInService(text)
+            }
+        } else {
+            if (!isWakeWordMatch(lower)) return
+
+            val now = System.currentTimeMillis()
+            if (now - lastWakeTime < WAKE_COOLDOWN_MS) {
+                Log.d(TAG, "Wake word suppressed — cooldown active")
+                return
+            }
+            lastWakeTime = now
+
+            val inlineCommand = extractInlineCommand(lower)
+            Log.i(TAG, "Wake word detected: '$lower' | inline='$inlineCommand'")
+            onWakeWordDetected("Agal", inlineCommand)
+        }
+    }
+
+    private fun isWakeWordMatch(lower: String): Boolean {
+        val customWake = com.agal.assistant.settings.AssistantSettingsRepository(this).getWakeWord().lowercase().trim()
+        return lower == "agal" || lower == "hey agal" || lower == customWake ||
+                lower.startsWith("agal ") || lower.startsWith("hey agal ") ||
+                (customWake.isNotEmpty() && lower.startsWith("$customWake "))
+    }
+
+    private fun extractInlineCommand(lower: String): String {
+        val customWake = com.agal.assistant.settings.AssistantSettingsRepository(this).getWakeWord().lowercase().trim()
+        return when {
+            lower.startsWith("hey agal ") -> lower.removePrefix("hey agal ").trim()
+            lower.startsWith("agal ") -> lower.removePrefix("agal ").trim()
+            customWake.isNotEmpty() && lower.startsWith("$customWake ") -> lower.removePrefix("$customWake ").trim()
+            else -> ""
+        }
+    }
+
+    /**
+     * Central wake-word response handler.
+     * If UI is active: broadcast the event and let the ViewModel animate + listen.
+     * If screen is off: wake screen, speak acknowledgement, then listen for command.
+     */
+    private fun onWakeWordDetected(keyword: String, inlineCommand: String) {
+        vibrateWake()
+
+        if (isUiActive) {
+            sendBroadcast(Intent(BROADCAST_WAKE_EVENT).apply {
+                putExtra("KEYWORD", keyword)
+                putExtra("INLINE_COMMAND", inlineCommand)
+                setPackage(packageName)
+            })
+            return
+        }
+
+        wakeScreen()
+        showWakeNotification(inlineCommand)
+        tryLaunchMainActivity(keyword, inlineCommand)
+
+        val reply = com.agal.assistant.settings.AssistantSettingsRepository(this).getListeningReply()
+        if (inlineCommand.isNotEmpty()) {
+            serviceScope.launch { executeCommandInService(inlineCommand) }
+        } else {
+            serviceScope.launch {
+                voiceSpeaker?.speak(reply)
+                delay(1500)
+                switchToCommandListeningMode()
             }
         }
     }
 
-    private fun handleRecognizedSpeech(text: String, isFinal: Boolean) {
-        val lower = text.lowercase().trim()
-        if (lower.isEmpty()) return
-
-        Log.d(TAG, "Acoustic audio heard (final=$isFinal): $lower")
-
-        // Broadcast to any active UI
-        val broadcastIntent = Intent("com.agal.assistant.SPEECH_EVENT").apply {
-            putExtra("TEXT", text)
-            putExtra("IS_FINAL", isFinal)
-            setPackage(packageName)
-        }
-        sendBroadcast(broadcastIntent)
-
-        // Strict wake word check — must contain "agal" as a clear word boundary
-        // to avoid false-positives from random words like "eagle", "legal", "regal"
-        val isWakeWord = lower == "agal" ||
-                lower == "hey agal" ||
-                lower == "hello agal" ||
-                lower == "hi agal" ||
-                lower.startsWith("agal ") ||
-                lower.startsWith("hey agal ") ||
-                lower.startsWith("hello agal ") ||
-                lower.startsWith("hi agal ") ||
-                lower.endsWith(" agal") ||
-                lower.contains("hey agal") ||
-                lower.contains("hello agal") ||
-                lower.contains("hi agal")
-
-        val now = System.currentTimeMillis()
-        if (isWakeWord && (now - lastWakeTime > 3000)) {
-            lastWakeTime = now
-            Log.i(TAG, "Wake word match detected in service: $lower")
-
-            // Extract command after wake phrase if user said e.g. "hey agal turn on flashlight"
-            val commandPart = lower
-                .replace("hey agal", "")
-                .replace("hello agal", "")
-                .replace("hi agal", "")
-                .removePrefix("agal")
-                .trim()
-
-            handleLockScreenWake("Agal", commandPart)
-        } else if (isFinal && isDirectCommand(lower) && (now - lastWakeTime > 3000)) {
-            lastWakeTime = now
-            Log.i(TAG, "Direct command match detected on lock screen: $lower")
-            handleLockScreenWake("Agal", lower)
+    private fun switchToCommandListeningMode() {
+        isCommandListeningMode = true
+        voskRecognizer?.stopListening()
+        voskRecognizer?.startListeningCommand()
+        updateNotificationText("Listening for your command...")
+        Log.i(TAG, "COMMAND LISTENING mode")
+        serviceScope.launch {
+            delay(COMMAND_LISTEN_TIMEOUT_MS)
+            if (isCommandListeningMode) returnToStandby()
         }
     }
 
-    private fun isDirectCommand(text: String): Boolean {
-        return text.contains("remind me") ||
-                text.contains("remember me") ||
-                text.contains("reminder") ||
-                text.contains("flashlight") ||
-                text.contains("torch") ||
-                text.contains("bluetooth") ||
-                text.contains("youtube") ||
-                text.contains("music") ||
-                text.contains("song") ||
-                text.contains("track") ||
-                text.contains("volume") ||
-                text.contains("mute") ||
-                text.contains("camera") ||
-                text.contains("photo") ||
-                text.contains("picture") ||
-                text.contains("video") ||
-                text.contains("record") ||
-                text.contains("battery") ||
-                text.contains("time") ||
-                text.contains("date") ||
-                text.contains("joke") ||
-                text.contains("settings") ||
-                text.contains("wifi") ||
-                text.contains("wi-fi") ||
-                text.contains("hotspot") ||
-                text.contains("airplane") ||
-                text.contains("flight mode") ||
-                text.contains("dnd") ||
-                text.contains("do not disturb") ||
-                text.contains("silent") ||
-                text.contains("notification") ||
-                text.contains("answer") ||
-                text.contains("attend") ||
-                text.contains("pick up") ||
-                text.contains("accept call") ||
-                text.contains("hang up") ||
-                text.contains("hangup") ||
-                text.contains("end call") ||
-                text.contains("cut the call") ||
-                text.startsWith("open ") ||
-                text.startsWith("launch ") ||
-                text.startsWith("start ") ||
-                text.contains("app") ||
-                text.contains("bucket list") ||
-                text.contains("trip") ||
-                text.contains("spent") ||
-                text.contains("expense")
+    private fun executeCommandInService(command: String) {
+        serviceScope.launch {
+            Log.i(TAG, "Service executing: '$command'")
+            val result = commandEngine?.execute(command)
+            val reply = result?.spokenReply ?: "Done."
+            voiceSpeaker?.speak(reply)
+            sendBroadcast(Intent(BROADCAST_COMMAND_RESULT).apply {
+                putExtra("SPOKEN_REPLY", reply)
+                putExtra("IS_SUCCESS", result?.isSuccess ?: false)
+                putExtra("DISPLAY_TITLE", result?.displayTitle ?: "")
+                putExtra("DISPLAY_DESC", result?.displayDescription ?: "")
+                setPackage(packageName)
+            })
+            delay(2000)
+            returnToStandby()
+        }
     }
 
-    private fun handleLockScreenWake(keyword: String, commandToRun: String) {
-        Log.i(TAG, "Triggering lock screen wake response! keyword=$keyword command=$commandToRun")
+    private fun returnToStandby() {
+        isCommandListeningMode = false
+        voskRecognizer?.stopListening()
+        voskRecognizer?.startListeningStandby()
+        porcupineEngine?.start()
+        updateNotificationText("Listening for \"Agal\"...")
+        Log.i(TAG, "Back in STANDBY mode")
+    }
 
-        // 1. Physically turn on the screen
+    private fun wakeScreen() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         @Suppress("DEPRECATION")
-        val screenWakeLock = powerManager?.newWakeLock(
+        powerManager?.newWakeLock(
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
             "Agal:ScreenWakeLock"
-        )
-        screenWakeLock?.acquire(6000)
+        )?.acquire(6000)
+    }
 
-        // 2. Strong double vibration feedback
+    private fun vibrateWake() {
         try {
             val vibrator = getSystemService(Vibrator::class.java)
             if (vibrator?.hasVibrator() == true) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val timings = longArrayOf(0, 100, 80, 140)
-                    val amplitudes = intArrayOf(0, 200, 0, 255)
+                    val timings = longArrayOf(0, 80, 60, 120)
+                    val amplitudes = intArrayOf(0, 180, 0, 255)
                     vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
                 } else {
                     @Suppress("DEPRECATION")
-                    vibrator.vibrate(250)
+                    vibrator.vibrate(200)
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Vibrate error: ${e.localizedMessage}")
         }
+    }
 
-        // 3. Launch MainActivity over keyguard via Full Screen Intent
+    private fun tryLaunchMainActivity(keyword: String, pendingCommand: String) {
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
             )
             putExtra("WAKE_TRIGGERED", true)
             putExtra("KEYWORD", keyword)
-            if (commandToRun.isNotEmpty()) {
-                putExtra("PENDING_COMMAND", commandToRun)
-            }
+            if (pendingCommand.isNotEmpty()) putExtra("PENDING_COMMAND", pendingCommand)
         }
+        try { startActivity(launchIntent) } catch (e: Exception) {
+            Log.w(TAG, "Could not launch MainActivity: ${e.localizedMessage}")
+        }
+    }
 
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            this,
-            WAKE_NOTIF_ID,
-            launchIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val wakeNotification = NotificationCompat.Builder(this, WAKE_CHANNEL_ID)
+    private fun showWakeNotification(inlineCommand: String) {
+        val launchIntent = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra("WAKE_TRIGGERED", true)
+        }
+        val pi = PendingIntent.getActivity(this, WAKE_NOTIF_ID, launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val reply = com.agal.assistant.settings.AssistantSettingsRepository(this).getListeningReply()
+        val notif = NotificationCompat.Builder(this, WAKE_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Agal • Wake Word Triggered")
-            .setContentText("Listening to you...")
+            .setContentTitle("Agal")
+            .setContentText(if (inlineCommand.isNotEmpty()) "Executing: $inlineCommand" else reply)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setFullScreenIntent(pi, true)
             .setAutoCancel(true)
             .build()
+        getSystemService(NotificationManager::class.java)?.notify(WAKE_NOTIF_ID, notif)
+    }
 
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager?.notify(WAKE_NOTIF_ID, wakeNotification)
-
-        try {
-            startActivity(launchIntent)
-        } catch (e: Exception) {
-            Log.w(TAG, "Direct startActivity fallback: ${e.localizedMessage}")
-        }
-
-        // 4. Voice response and command execution
-        if (commandToRun.isNotEmpty()) {
-            serviceScope.launch {
-                val result = commandEngine?.execute(commandToRun)
-                val reply = result?.spokenReply ?: "Executing command."
-                voiceSpeaker?.speak(reply)
-            }
-        } else {
-            voiceSpeaker?.speak("I'm listening.")
-        }
+    private fun updateNotificationText(text: String) {
+        getSystemService(NotificationManager::class.java)?.notify(NOTIF_ID, buildOngoingNotification(text))
     }
 
     private fun acquireWakeLock() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        // 4-hour timeout -- service restarts via START_STICKY and re-acquires
         wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Agal:BackgroundVoiceLock")
-        wakeLock?.acquire()
+        wakeLock?.acquire(4 * 60 * 60 * 1000L)
     }
 
     private fun createNotificationChannels() {
@@ -306,31 +359,45 @@ class AgalVoiceService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val stopIntent = Intent(this, AgalVoiceService::class.java).apply {
+            action = ACTION_STOP_SPEAKING
+        }
+        val stopPending = PendingIntent.getService(
+            this,
+            1099,
+            stopIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         return NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
             .setContentTitle("Agal • Offline Assistant Active")
             .setContentText(contentText)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
+            .addAction(android.R.drawable.ic_media_pause, "STOP AGAL", stopPending)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.getBooleanExtra("RESTART_LISTENING", false) == true) {
-            voskRecognizer?.startListening()
+        when (intent?.action) {
+            ACTION_STOP_SPEAKING -> {
+                voiceSpeaker?.stop()
+                returnToStandby()
+            }
+            ACTION_RESTART_LISTENING -> returnToStandby()
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        try { unregisterReceiver(controlReceiver) } catch (_: Exception) {}
         porcupineEngine?.release()
         voskRecognizer?.release()
         voiceSpeaker?.shutdown()
-        if (wakeLock?.isHeld == true) {
-            wakeLock?.release()
-        }
+        if (wakeLock?.isHeld == true) wakeLock?.release()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

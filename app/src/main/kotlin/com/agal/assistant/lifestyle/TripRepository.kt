@@ -47,17 +47,31 @@ class TripRepository(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getTrips(): List<TripDestination> {
-        val raw = prefs.getString(KEY_TRIPS, null) ?: return getDefaultTrips()
+        val raw = prefs.getString(KEY_TRIPS, null) ?: return emptyList()
         return try {
             val array = JSONArray(raw)
             val list = mutableListOf<TripDestination>()
             for (i in 0 until array.length()) {
                 list.add(TripDestination.fromJson(array.getJSONObject(i)))
             }
-            list
+            // If stored list only contains legacy predefined mock items, clear them
+            val isLegacyMock = list.all { item ->
+                item.destination.contains("Manali", ignoreCase = true) ||
+                item.destination.contains("Goa", ignoreCase = true)
+            }
+            if (isLegacyMock && list.isNotEmpty()) {
+                clearAll()
+            } else {
+                list
+            }
         } catch (e: Exception) {
-            getDefaultTrips()
+            emptyList()
         }
+    }
+
+    fun clearAll(): List<TripDestination> {
+        prefs.edit().remove(KEY_TRIPS).apply()
+        return emptyList()
     }
 
     fun addTrip(destination: String, customExpense: Double? = null): Pair<TripDestination, List<TripDestination>> {
@@ -105,17 +119,6 @@ class TripRepository(private val context: Context) {
     }
 
     private fun getDefaultTrips(): List<TripDestination> {
-        return listOf(
-            TripDestination(
-                destination = "Manali & Solang Valley",
-                estimatedExpense = 22000.0,
-                notes = "Estimated budget including travel & stay: ₹22000"
-            ),
-            TripDestination(
-                destination = "Goa Beach Holiday",
-                estimatedExpense = 12000.0,
-                notes = "Estimated budget including travel & stay: ₹12000"
-            )
-        )
+        return emptyList()
     }
 }

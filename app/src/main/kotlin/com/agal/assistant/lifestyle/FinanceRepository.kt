@@ -58,17 +58,32 @@ class FinanceRepository(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getTransactions(): List<FinanceTransaction> {
-        val raw = prefs.getString(KEY_TRANSACTIONS, null) ?: return getDefaultTransactions()
+        val raw = prefs.getString(KEY_TRANSACTIONS, null) ?: return emptyList()
         return try {
             val array = JSONArray(raw)
             val list = mutableListOf<FinanceTransaction>()
             for (i in 0 until array.length()) {
                 list.add(FinanceTransaction.fromJson(array.getJSONObject(i)))
             }
-            list
+            // If stored list only contains legacy predefined mock items, clear them
+            val isLegacyMock = list.all { item ->
+                item.title.contains("Monthly Salary", ignoreCase = true) ||
+                item.title.contains("Groceries", ignoreCase = true) ||
+                item.title.contains("Fuel & Petrol", ignoreCase = true)
+            }
+            if (isLegacyMock && list.isNotEmpty()) {
+                clearAll()
+            } else {
+                list
+            }
         } catch (e: Exception) {
-            getDefaultTransactions()
+            emptyList()
         }
+    }
+
+    fun clearAll(): List<FinanceTransaction> {
+        prefs.edit().remove(KEY_TRANSACTIONS).apply()
+        return emptyList()
     }
 
     fun addTransaction(title: String, amount: Double, category: String = "General", type: FinanceType = FinanceType.EXPENSE): Pair<FinanceTransaction, List<FinanceTransaction>> {
@@ -115,25 +130,6 @@ class FinanceRepository(private val context: Context) {
     }
 
     private fun getDefaultTransactions(): List<FinanceTransaction> {
-        return listOf(
-            FinanceTransaction(
-                title = "Monthly Salary",
-                amount = 45000.0,
-                category = "Salary",
-                type = FinanceType.INCOME
-            ),
-            FinanceTransaction(
-                title = "Groceries & Supermarket",
-                amount = 2400.0,
-                category = "Food",
-                type = FinanceType.EXPENSE
-            ),
-            FinanceTransaction(
-                title = "Fuel & Petrol",
-                amount = 1200.0,
-                category = "Travel",
-                type = FinanceType.EXPENSE
-            )
-        )
+        return emptyList()
     }
 }

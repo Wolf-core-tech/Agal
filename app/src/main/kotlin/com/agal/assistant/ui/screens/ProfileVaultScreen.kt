@@ -105,7 +105,7 @@ fun ProfileVaultScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(
-                                text = "Saran",
+                                text = "Venkat",
                                 color = TextDark,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold

@@ -35,7 +35,7 @@ fun SettingsScreen(
     var customReplyInput by remember { mutableStateOf(uiState.listeningReply) }
 
     val wakeWordPresets = listOf("Hey Agal", "Agal", "வணக்கம் அகல்", "அகல்", "Hey Assistant", "Jarvis")
-    val replyPresetsEn = listOf("I'm listening.", "Yes, I'm here.", "How can I help you?", "Tell me Saran!")
+    val replyPresetsEn = listOf("Yes Venkat", "Yes Venkat, I'm listening.", "Yes, I'm here.", "How can I help you, Venkat?", "I'm listening.")
     val replyPresetsTa = listOf("சொல்லுங்க, கேட்கிறேன்.", "நான் தயாராக இருக்கிறேன்.", "உங்களுக்கு என்ன வேண்டும்?")
 
     Scaffold(

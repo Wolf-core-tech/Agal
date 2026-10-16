@@ -15,11 +15,11 @@ enum class AssistantStatus {
 data class AssistantUiState(
     val status: AssistantStatus = AssistantStatus.IDLE,
     val activeWakeWord: String = "Hey Agal",
-    val listeningReply: String = "I'm listening.",
+    val listeningReply: String = "Yes Venkat",
     val assistantLanguage: String = "EN",
     val isContinuousListening: Boolean = true,
     val lastRecognizedText: String = "",
-    val activeStatusMessage: String = "Say \"Hey Agal\" or tap to speak",
+    val activeStatusMessage: String = "Say \"Hey Agal\" or \"Agal\"",
     val isSpeaking: Boolean = false,
     val isMuted: Boolean = false,
     val soundLevel: Float = 0.0f,
